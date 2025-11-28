@@ -40,7 +40,7 @@ output "helm_values_yaml" {
 locals {
   complex_values = {
     global = {
-      storageClass = "fast"
+      storageClass  = "fast"
       imageRegistry = "ghcr.io"
     }
     postgresql = {
@@ -61,7 +61,7 @@ locals {
     redis = {
       enabled = false
       # All nested values will be included even though enabled is false
-      master = null
+      master  = null
       replica = null
     }
   }
@@ -79,12 +79,12 @@ locals {
       enabled = true
       hosts = [
         {
-          host = "example.com"
+          host  = "example.com"
           paths = ["/"]
         },
         null, # This will be omitted
         {
-          host = "www.example.com"
+          host  = "www.example.com"
           paths = ["/", "/api"]
         }
       ]
