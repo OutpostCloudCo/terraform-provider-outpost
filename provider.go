@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
 // Ensure the implementation satisfies the provider.Provider interface.
@@ -47,13 +49,13 @@ func (p *OutpostProvider) Configure(ctx context.Context, req provider.ConfigureR
 }
 
 // DataSources returns a slice of data source implementations.
-func (p *OutpostProvider) DataSources(ctx context.Context) []func() provider.DataSource {
-	return []func() provider.DataSource{}
+func (p *OutpostProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
 
 // Resources returns a slice of resource implementations.
-func (p *OutpostProvider) Resources(ctx context.Context) []func() provider.Resource {
-	return []func() provider.Resource{}
+func (p *OutpostProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return []func() resource.Resource{}
 }
 
 // Functions returns a slice of function implementations.

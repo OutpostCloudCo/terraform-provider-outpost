@@ -8,6 +8,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
+// version is set via ldflags during build
+var version = "dev"
+
 // Provider documentation generation.
 //go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name outpost
 
@@ -22,7 +25,7 @@ func main() {
 		Debug:   debug,
 	}
 
-	err := providerserver.Serve(context.Background(), New, opts)
+	err := providerserver.Serve(context.Background(), New(version), opts)
 
 	if err != nil {
 		log.Fatal(err.Error())
