@@ -6,8 +6,8 @@ build:
 
 .PHONY: install
 install: build
-	mkdir -p ~/.terraform.d/plugins/registry.terraform.io/outpost/outpost/0.1.0/$$(go env GOOS)_$$(go env GOARCH)
-	cp terraform-provider-outpost ~/.terraform.d/plugins/registry.terraform.io/outpost/outpost/0.1.0/$$(go env GOOS)_$$(go env GOARCH)/
+	mkdir -p ~/.terraform.d/plugins/registry.terraform.io/outpost/outpost/0.1.5/$$(go env GOOS)_$$(go env GOARCH)
+	cp terraform-provider-outpost ~/.terraform.d/plugins/registry.terraform.io/outpost/outpost/0.1.5/$$(go env GOOS)_$$(go env GOARCH)/
 
 .PHONY: test
 test:
