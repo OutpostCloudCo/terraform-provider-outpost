@@ -11,7 +11,10 @@ import sys
 import urllib.error
 import urllib.request
 
-TERRAKUBE_ENDPOINT = os.environ.get("TERRAKUBE_ENDPOINT", "https://terrakube-api.increbesco.net")
+TERRAKUBE_ENDPOINT = os.environ.get(
+    "TERRAKUBE_ENDPOINT",
+    os.environ.get("TERRAKUBE_API_URL", "https://terrakube-api.increbesco.net"),
+)
 TERRAKUBE_TOKEN = os.environ.get("TERRAKUBE_TOKEN", "")
 TERRAKUBE_ORGANIZATION = os.environ.get("TERRAKUBE_ORGANIZATION", "Outpost")
 RELEASE_TAG = os.environ.get("RELEASE_TAG", "")
@@ -20,6 +23,7 @@ GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "OutpostCloudCo/terrafor
 PROVIDER_NAME = "outpost"
 PROTOCOLS = "5.0"
 JSONAPI = "application/vnd.api+json"
+USER_AGENT = "outpost-terraform-provider-register/1.0"
 
 
 class RegisterError(Exception):
@@ -35,6 +39,7 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
             "Authorization": f"Bearer {token}",
             "Accept": JSONAPI,
             "Content-Type": JSONAPI,
+            "User-Agent": USER_AGENT,
         },
         method=method,
     )
@@ -48,13 +53,13 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
 
 
 def http_text(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "outpost-provider-register/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=120) as resp:
         return resp.read().decode()
 
 
 def http_sha256(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "outpost-provider-register/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
     with urllib.request.urlopen(req, timeout=120) as resp:
         while True:

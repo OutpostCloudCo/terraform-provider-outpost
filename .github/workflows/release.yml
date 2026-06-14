@@ -35,13 +35,14 @@ jobs:
   register-terrakube:
     name: Register in Terrakube
     needs: goreleaser
-    runs-on: ubuntu-latest
+    # Public Terrakube API is behind Cloudflare; GitHub-hosted runners get 1010 blocked.
+    runs-on: johor-runners
     steps:
       - uses: actions/checkout@v4
 
       - name: Register provider in Terrakube registry
         env:
-          TERRAKUBE_ENDPOINT: https://terrakube-api.increbesco.net
+          TERRAKUBE_ENDPOINT: ${{ vars.TERRAKUBE_API_URL || 'https://terrakube-api.increbesco.net' }}
           TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_API_TOKEN }}
           TERRAKUBE_ORGANIZATION: Outpost
           RELEASE_TAG: ${{ github.ref_name }}
