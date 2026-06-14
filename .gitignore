@@ -49,3 +49,8 @@ Thumbs.db
 # goreleaser
 dist/
 
+# Python (scripts/)
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/

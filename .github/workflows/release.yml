@@ -47,4 +47,5 @@ jobs:
           TERRAKUBE_ORGANIZATION: Outpost
           RELEASE_TAG: ${{ github.ref_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/register_terrakube.py

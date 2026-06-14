@@ -19,6 +19,7 @@ TERRAKUBE_TOKEN = os.environ.get("TERRAKUBE_TOKEN", "")
 TERRAKUBE_ORGANIZATION = os.environ.get("TERRAKUBE_ORGANIZATION", "Outpost")
 RELEASE_TAG = os.environ.get("RELEASE_TAG", "")
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "OutpostCloudCo/terraform-provider-outpost")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 PROVIDER_NAME = "outpost"
 PROTOCOLS = "5.0"
@@ -30,19 +31,37 @@ class RegisterError(Exception):
     pass
 
 
+def github_headers() -> dict[str, str]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": USER_AGENT,
+    }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return headers
+
+
+def http_request(url: str, *, method: str = "GET", headers: dict[str, str] | None = None) -> bytes:
+    req = urllib.request.Request(url, headers=headers or {}, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        raise RegisterError(f"{method} {url} -> {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RegisterError(f"{method} {url} failed: {exc}") from exc
+
+
 def api_request(method: str, url: str, token: str, body: dict | None = None) -> dict:
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": JSONAPI,
+        "Content-Type": JSONAPI,
+        "User-Agent": USER_AGENT,
+    }
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": JSONAPI,
-            "Content-Type": JSONAPI,
-            "User-Agent": USER_AGENT,
-        },
-        method=method,
-    )
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             raw = resp.read().decode()
@@ -52,22 +71,46 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
         raise RegisterError(f"{method} {url} -> {exc.code}: {detail}") from exc
 
 
-def http_text(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        return resp.read().decode()
-
-
 def http_sha256(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        while True:
-            chunk = resp.read(65536)
-            if not chunk:
-                break
-            digest.update(chunk)
+    data = http_request(url, headers=github_headers())
+    digest.update(data)
     return digest.hexdigest()
+
+
+def parse_shasum(shasums_text: str, filename: str) -> str | None:
+    for line in shasums_text.splitlines():
+        parts = line.strip().split()
+        if len(parts) >= 2 and parts[1] == filename:
+            return parts[0]
+    return None
+
+
+def release_assets(tag: str) -> dict[str, str]:
+    """Return release asset name -> browser_download_url via GitHub API."""
+    url = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/tags/{tag}"
+    payload = json.loads(http_request(url, headers=github_headers()).decode())
+    assets = {
+        asset["name"]: asset["browser_download_url"]
+        for asset in payload.get("assets", [])
+    }
+    if not assets:
+        raise RegisterError(f"no release assets found for {tag}")
+    return assets
+
+
+def pick_linux_amd64_zip(assets: dict[str, str]) -> tuple[str, str]:
+    for name, url in assets.items():
+        if name.endswith("_linux_amd64.zip"):
+            return name, url
+    raise RegisterError(f"no linux_amd64.zip asset in release: {list(assets)}")
+
+
+def pick_shasums_file(assets: dict[str, str]) -> tuple[str, str] | None:
+    for name, url in assets.items():
+        if "SHA256SUMS" in name or name == "checksums.txt":
+            return name, url
+    return None
 
 
 def parse_version(tag: str) -> str:
@@ -84,7 +127,6 @@ def main() -> None:
         raise RegisterError("RELEASE_TAG is required")
 
     version = parse_version(RELEASE_TAG)
-    repo_name = GITHUB_REPOSITORY.split("/", 1)[-1]
     endpoint = TERRAKUBE_ENDPOINT.rstrip("/")
 
     orgs = api_request("GET", f"{endpoint}/api/v1/organization", TERRAKUBE_TOKEN)
@@ -150,11 +192,6 @@ def main() -> None:
     else:
         print(f"version {version} exists ({version_id})")
 
-    release_base = f"https://github.com/{GITHUB_REPOSITORY}/releases/download/{RELEASE_TAG}"
-    filename = f"{repo_name}_{version}_linux_amd64.zip"
-    download_url = f"{release_base}/{filename}"
-    shasums_url = f"{release_base}/{repo_name}_{version}_SHA256SUMS"
-
     implementations = api_request(
         "GET",
         f"{endpoint}/api/v1/organization/{org_id}/provider/{provider_id}/version/{version_id}/implementation",
@@ -166,35 +203,39 @@ def main() -> None:
             print("linux/amd64 implementation already registered")
             return
 
-    shasum = None
-    try:
-        for line in http_text(shasums_url).splitlines():
-            parts = line.strip().split()
-            if len(parts) >= 2 and parts[1] == filename:
-                shasum = parts[0]
-                break
-    except RegisterError:
-        pass
+    assets = release_assets(RELEASE_TAG)
+    filename, download_url = pick_linux_amd64_zip(assets)
+    shasums_url: str | None = None
+    shasum: str | None = None
+
+    shasums = pick_shasums_file(assets)
+    if shasums:
+        shasums_name, shasums_url = shasums
+        try:
+            shasums_text = http_request(shasums_url, headers=github_headers()).decode()
+            shasum = parse_shasum(shasums_text, filename)
+        except RegisterError as exc:
+            print(f"warning: could not read checksums from {shasums_name}: {exc}")
+
     if not shasum:
+        print(f"hashing {filename} (checksum file missing or unreadable)")
         shasum = http_sha256(download_url)
+
+    attrs: dict[str, str] = {
+        "os": "linux",
+        "arch": "amd64",
+        "filename": filename,
+        "downloadUrl": download_url,
+        "shasum": shasum,
+    }
+    if shasums_url:
+        attrs["shasumsUrl"] = shasums_url
 
     api_request(
         "POST",
         f"{endpoint}/api/v1/organization/{org_id}/provider/{provider_id}/version/{version_id}/implementation",
         TERRAKUBE_TOKEN,
-        {
-            "data": {
-                "type": "implementation",
-                "attributes": {
-                    "os": "linux",
-                    "arch": "amd64",
-                    "filename": filename,
-                    "downloadUrl": download_url,
-                    "shasum": shasum,
-                    "shasumsUrl": shasums_url,
-                },
-            }
-        },
+        {"data": {"type": "implementation", "attributes": attrs}},
     )
     print(f"registered {PROVIDER_NAME} {version} linux/amd64")
 
