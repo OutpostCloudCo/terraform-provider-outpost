@@ -231,15 +231,21 @@ def main() -> None:
         print(f"hashing {filename} from GitHub release")
         shasum = sha256_url(download_url)
 
+    # Terrakube DB columns are NOT NULL; unsigned providers use empty placeholders.
     attrs: dict[str, str] = {
         "os": "linux",
         "arch": "amd64",
         "filename": filename,
         "downloadUrl": download_url,
         "shasum": shasum,
+        "shasumsUrl": shasums_url or "",
+        "shasumsSignatureUrl": "",
+        "keyId": "",
+        "asciiArmor": "",
+        "trustSignature": "",
+        "source": "",
+        "sourceUrl": "",
     }
-    if shasums_url:
-        attrs["shasumsUrl"] = shasums_url
 
     api_request(
         "POST",
