@@ -20,7 +20,7 @@ TERRAKUBE_ENDPOINT = os.environ.get(
     os.environ.get("TERRAKUBE_API_URL", "https://terrakube-api.increbesco.net"),
 )
 TERRAKUBE_TOKEN = os.environ.get("TERRAKUBE_TOKEN", "")
-TERRAKUBE_ORGANIZATION = os.environ.get("TERRAKUBE_ORGANIZATION", "Outpost")
+TERRAKUBE_ORGANIZATION = os.environ.get("TERRAKUBE_ORGANIZATION", "outpost")
 RELEASE_TAG = os.environ.get("RELEASE_TAG", "")
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "OutpostCloudCo/terraform-provider-outpost")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
