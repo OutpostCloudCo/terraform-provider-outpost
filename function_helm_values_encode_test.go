@@ -6,13 +6,43 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func TestHelmValuesEncodeFunction(t *testing.T) {
-	f := NewHelmValuesEncodeFunction()
+func TestRemoveNullsAndEmpty_StripsNulls(t *testing.T) {
+	fn := &HelmValuesEncodeFunction{}
+	input := map[string]interface{}{
+		"name":       "api",
+		"pullPolicy": nil,
+		"probes": map[string]interface{}{
+			"readinessProbe": map[string]interface{}{
+				"httpGet": map[string]interface{}{
+					"path": "/health",
+					"port": int64(8000),
+				},
+			},
+			"livenessProbe": nil,
+		},
+	}
 
+	cleaned := fn.removeNullsAndEmpty(input)
+	cleanedMap, ok := cleaned.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map, got %T", cleaned)
+	}
+	if _, ok := cleanedMap["pullPolicy"]; ok {
+		t.Fatal("pullPolicy should be omitted")
+	}
+	probes, ok := cleanedMap["probes"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected probes map, got %T", cleanedMap["probes"])
+	}
+	if _, ok := probes["livenessProbe"]; ok {
+		t.Fatal("livenessProbe should be omitted")
+	}
+}
+
+func TestHelmValuesEncodeFunction(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]interface{}
@@ -56,15 +86,10 @@ func TestHelmValuesEncodeFunction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This is a simplified test - in practice you'd need to properly initialize
-			// the function.RunRequest with a proper Arguments implementation
-			// For now, we'll just verify the helper functions work
 			ctx := context.Background()
 
-			// Create a dynamic value from the input
 			inputValue := convertMapToDynamic(ctx, tt.input)
 
-			// Test the conversion functions
 			fn := &HelmValuesEncodeFunction{}
 			goValue, err := fn.dynamicToGoValue(ctx, inputValue)
 			if err != nil {
@@ -79,9 +104,7 @@ func TestHelmValuesEncodeFunction(t *testing.T) {
 				return
 			}
 
-			// Note: Full function testing would require a complete Terraform framework setup
 			t.Logf("Successfully converted and cleaned input: %+v", cleaned)
-
 		})
 	}
 }
@@ -98,8 +121,7 @@ func convertMapToDynamic(ctx context.Context, m map[string]interface{}) types.Dy
 	}
 
 	objVal, _ := types.ObjectValue(attrTypes, attrs)
-	dynVal, _ := types.DynamicValue(objVal)
-	return dynVal
+	return types.DynamicValue(objVal)
 }
 
 // Helper function to convert interface{} to attr.Value
@@ -110,7 +132,7 @@ func convertInterfaceToAttrValue(v interface{}) (attr.Value, attr.Type) {
 	case bool:
 		return types.BoolValue(val), types.BoolType
 	case int64:
-		return types.NumberValue(big.NewInt(val)), types.NumberType
+		return types.NumberValue(big.NewFloat(float64(val))), types.NumberType
 	case float64:
 		return types.NumberValue(big.NewFloat(val)), types.NumberType
 	case []interface{}:

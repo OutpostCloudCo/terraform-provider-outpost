@@ -5,6 +5,7 @@ The Outpost Terraform Provider provides utility functions for Terraform configur
 ## Features
 
 - **`helm_values_encode` function**: Converts Terraform objects to YAML format while recursively removing null values and empty containers
+- **`env_var` function**: Reads a process environment variable by name (empty string when unset)
 
 ## Requirements
 
@@ -109,6 +110,16 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 10
 ```
+
+### env_var Function
+
+```hcl
+locals {
+  vault_addr = provider::outpost::env_var("VAULT_ADDR")
+}
+```
+
+Returns `os.Getenv(name)` — useful for Terrakube/CI-injected environment variables. Errors on null, unknown, or empty `name`.
 
 Notice that:
 - `image.pullPolicy` (null) was omitted

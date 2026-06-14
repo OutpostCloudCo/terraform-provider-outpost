@@ -39,7 +39,7 @@ func (p *OutpostProvider) Metadata(ctx context.Context, req provider.MetadataReq
 // Schema returns the provider schema.
 func (p *OutpostProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "The Outpost provider provides utility functions for Terraform configurations, including YAML encoding with null value omission for Helm values files.",
+		Description: "Utility functions for Terraform: helm_values_encode (YAML with null omission) and env_var (process environment lookup).",
 	}
 }
 
@@ -62,6 +62,7 @@ func (p *OutpostProvider) Resources(ctx context.Context) []func() resource.Resou
 func (p *OutpostProvider) Functions(ctx context.Context) []func() function.Function {
 	return []func() function.Function{
 		NewHelmValuesEncodeFunction,
+		NewEnvVarFunction,
 	}
 }
 
