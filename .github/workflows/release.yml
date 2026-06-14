@@ -31,3 +31,19 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  register-terrakube:
+    name: Register in Terrakube
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Register provider in Terrakube registry
+        env:
+          TERRAKUBE_ENDPOINT: https://terrakube-api.increbesco.net
+          TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_API_TOKEN }}
+          TERRAKUBE_ORGANIZATION: Outpost
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/register_terrakube.py
