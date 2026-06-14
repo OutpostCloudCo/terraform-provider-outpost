@@ -376,4 +376,3 @@ func (f *HelmValuesEncodeFunction) removeNullsAndEmpty(value interface{}) interf
 func NewHelmValuesEncodeFunction() function.Function {
 	return &HelmValuesEncodeFunction{}
 }
-

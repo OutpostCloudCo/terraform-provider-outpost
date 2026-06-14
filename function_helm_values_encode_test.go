@@ -164,4 +164,3 @@ func convertInterfaceToAttrValue(v interface{}) (attr.Value, attr.Type) {
 		return types.StringNull(), types.StringType
 	}
 }
-

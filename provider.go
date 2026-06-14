@@ -65,4 +65,3 @@ func (p *OutpostProvider) Functions(ctx context.Context) []func() function.Funct
 		NewEnvVarFunction,
 	}
 }
-
