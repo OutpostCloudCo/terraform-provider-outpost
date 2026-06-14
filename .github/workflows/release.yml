@@ -44,7 +44,7 @@ jobs:
         env:
           TERRAKUBE_ENDPOINT: ${{ vars.TERRAKUBE_API_URL || 'https://terrakube-api.increbesco.net' }}
           TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_API_TOKEN }}
-          TERRAKUBE_ORGANIZATION: outpost
+          TERRAKUBE_ORGANIZATION: Outpost
           RELEASE_TAG: ${{ github.ref_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
