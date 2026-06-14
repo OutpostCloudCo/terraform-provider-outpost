@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Register this provider release in the Terrakube private registry."""
+"""Register this provider release in the Terrakube private registry.
+
+Expects a public GitHub repo so release asset URLs work for Terrakube executors
+without authentication.
+"""
 
 from __future__ import annotations
 
@@ -41,16 +45,17 @@ def github_headers() -> dict[str, str]:
     return headers
 
 
-def http_request(url: str, *, method: str = "GET", headers: dict[str, str] | None = None) -> bytes:
-    req = urllib.request.Request(url, headers=headers or {}, method=method)
+def http_get(url: str) -> bytes:
+    headers = {"User-Agent": USER_AGENT}
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
             return resp.read()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
-        raise RegisterError(f"{method} {url} -> {exc.code}: {detail}") from exc
+        raise RegisterError(f"GET {url} -> {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
-        raise RegisterError(f"{method} {url} failed: {exc}") from exc
+        raise RegisterError(f"GET {url} failed: {exc}") from exc
 
 
 def api_request(method: str, url: str, token: str, body: dict | None = None) -> dict:
@@ -71,10 +76,9 @@ def api_request(method: str, url: str, token: str, body: dict | None = None) -> 
         raise RegisterError(f"{method} {url} -> {exc.code}: {detail}") from exc
 
 
-def http_sha256(url: str) -> str:
+def sha256_url(url: str) -> str:
     digest = hashlib.sha256()
-    data = http_request(url, headers=github_headers())
-    digest.update(data)
+    digest.update(http_get(url))
     return digest.hexdigest()
 
 
@@ -87,9 +91,16 @@ def parse_shasum(shasums_text: str, filename: str) -> str | None:
 
 
 def release_assets(tag: str) -> dict[str, str]:
-    """Return release asset name -> browser_download_url via GitHub API."""
+    """Return release asset name -> public browser_download_url."""
     url = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/tags/{tag}"
-    payload = json.loads(http_request(url, headers=github_headers()).decode())
+    req = urllib.request.Request(url, headers=github_headers())
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        raise RegisterError(f"GET {url} -> {exc.code}: {detail}") from exc
+
     assets = {
         asset["name"]: asset["browser_download_url"]
         for asset in payload.get("assets", [])
@@ -212,14 +223,13 @@ def main() -> None:
     if shasums:
         shasums_name, shasums_url = shasums
         try:
-            shasums_text = http_request(shasums_url, headers=github_headers()).decode()
-            shasum = parse_shasum(shasums_text, filename)
+            shasum = parse_shasum(http_get(shasums_url).decode(), filename)
         except RegisterError as exc:
-            print(f"warning: could not read checksums from {shasums_name}: {exc}")
+            print(f"warning: could not read {shasums_name}: {exc}")
 
     if not shasum:
-        print(f"hashing {filename} (checksum file missing or unreadable)")
-        shasum = http_sha256(download_url)
+        print(f"hashing {filename} from GitHub release")
+        shasum = sha256_url(download_url)
 
     attrs: dict[str, str] = {
         "os": "linux",
